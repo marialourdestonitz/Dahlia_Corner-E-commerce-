@@ -5,7 +5,10 @@ const port = process.env.PORT || 3000; // Use the port specified in the environm
 const dotenv = require('dotenv').config();
 
 const authRouter = require('./routes/authRoute');
+const productRouter = require('./routes/productRoute')
 const cookieParser = require('cookie-parser');
+const morgan = require('morgan');
+
 const { notFound } = require('./middlewares/notFound');
 const { errorHandler } = require('./middlewares/errorHandler');
 
@@ -15,12 +18,13 @@ dbConnect();
 const bodyParser = require('body-parser');
 
 
-
+app.use(morgan());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 app.use('/api/user/', authRouter);
+app.use('/api/product', productRouter);
 
 app.use(notFound);
 app.use(errorHandler);

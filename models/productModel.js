@@ -23,14 +23,17 @@ var productSchema = new mongoose.Schema({
         required: true,
     },
     category: {
-        type: ObjectId,
-        ref: 'Category'
+        type: String,
+        required: true,
     },
     subCategory: {
-        type: ObjectId,
-        ref: 'Sub-category'
+        type: String,
+        required: true,
     },
-    quantity: Number,
+    quantity: {
+        type: Number,
+        required: true,
+    },
     images: {
         type: Array,
     },
