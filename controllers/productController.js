@@ -1,7 +1,12 @@
 const Product = require('../models/productModel');
 const asyncHandler = require('express-async-handler');
+const User = require('../models/userModel.js');
 const { default: slugify } = require('slugify');
 const slug = require('slugify');
+const validateMondoDBId = require('../utils/validateMongoDbId');
+const cloudinaryUploadImage = require('../utils/cloudinary');
+const fs = require('fs');
+
 
 //Create product
 const createProduct = asyncHandler(async (req, res) => {
@@ -108,11 +113,131 @@ const getAllProduct = asyncHandler(async (req, res) => {
     }
 });
 
+const addToWishlist = asyncHandler(async (req, res) => {
+    const { _id } = req.user;
+    const { prodId } = req.body;
+    try {
+        const user = await User.findById(_id);
+        const alreadyAdded = user.wishlist.find((id) => toString() === prodId);
+        if (alreadyAdded) {
+            let user = await User.findByIdAndUpdate(_id,
+                {
+                    $pull: { wishlist: prodId }
+                },
+                {
+                    new: true,
+                }
+            );
+            res.json(user);
+        } else {
+            let user = await User.findByIdAndUpdate(_id,
+                {
+                    $push: { wishlist: prodId }
+                },
+                {
+                    new: true,
+                }
+            );
+            res.json(user);
+        }
+    } catch (error) {
+        throw new Error(error);
+    }
+});
+
+const rating = asyncHandler(async (req, res) => {
+    const { _id } = req.user;
+    const { star, prodId } = req.body;
+
+    try {
+        const product = await Product.findById(prodId);
+        let alreadyRated = product.ratings.find(
+            (userId) => userId.postedby.toString() === _id.toString()
+        );
+        if (alreadyRated) {
+            const updateRating = await Product.updateOne(
+                {
+                    ratings: { $elemMatch: alreadyRated },
+                },
+                {
+                    $set: { 'ratings.$.star': star },
+                },
+                {
+                    new: true,
+                },
+            );
+        } else {
+            const rateProduct = await Product.findByIdAndUpdate(
+                prodId,
+                {
+                    $push: {
+                        ratings: {
+                            star: star,
+                            postedby: _id,
+                        },
+                    },
+                },
+                {
+                    new: true,
+                }
+            );
+        }
+        const getAllRating = await Product.findById(prodId);
+        let totalRating = getAllRating.ratings.length;
+        let ratingSum = getAllRating.ratings.map((item) => item.star)
+            .reduce((prev, curr) => prev + curr, 0);
+        let actualRating = Math.round(ratingSum / totalRating);
+        let finalProduct = await Product.findByIdAndUpdate(
+            prodId,
+            {
+                totalRating: actualRating,
+            },
+            {
+                new: true,
+            }
+        );
+        res.json(finalProduct);
+    } catch (error) {
+        throw new Error(error);
+    }
+});
+
+const uploadImages = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    try {
+        const uploader = (path) => cloudinaryUploadImage(path, "images");
+        const urls = [];
+        const files = req.files;
+        for (const file of files) {
+            const { path } = file;
+            const newpath = await uploader(path);
+            urls.push(newpath);
+            fs.unlinkSync(path);
+        }
+        const findProduct = await Product.findByIdAndUpdate(
+            id,
+            {
+                images: urls.map((file) => {
+                    return file;
+                }),
+            },
+            {
+                new: true,
+            }
+        );
+        res.json(findProduct);
+    } catch (error) {
+        throw new Error(error);
+    }
+});
 
 module.exports = {
     createProduct,
     getProduct,
     getAllProduct,
     updateProduct,
-    deleteProduct
+    deleteProduct,
+    addToWishlist,
+    rating,
+    uploadImages
 };
